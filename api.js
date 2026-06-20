@@ -8,12 +8,18 @@ const ABS = {
     const opts = {
       method,
       headers: {
-        'Authorization': `Bearer ${CONFIG.ABS_API_KEY}`,
+        'Authorization': `Bearer ${AUTH.token}`,
         'Content-Type': 'application/json',
       },
     };
     if (body !== undefined) opts.body = JSON.stringify(body);
     const res = await fetch(CONFIG.ABS_URL + path, opts);
+    if (res.status === 401) {
+      // Token expired or invalid — force re-login
+      AUTH.logout();
+      location.reload();
+      throw new Error('Session expired — please log in again');
+    }
     if (!res.ok) {
       const msg = await res.text().catch(() => res.statusText);
       throw new Error(`ABS ${res.status}: ${msg}`);
@@ -89,12 +95,10 @@ const ABS = {
   },
 
   async addToPlaylist(playlistId, items) {
-    // items: [{libraryItemId, episodeId}]
     return this.post(`/api/playlists/${playlistId}/batch/add`, { items });
   },
 
   async removeFromPlaylist(playlistId, items) {
-    // items: [{libraryItemId, episodeId}]
     return this.post(`/api/playlists/${playlistId}/batch/remove`, { items });
   },
 
@@ -109,7 +113,6 @@ const ABS = {
   // ── Discovery ───────────────────────────────────
   async searchPodcasts(term) {
     const d = await this.get(`/api/podcasts/search?term=${encodeURIComponent(term)}`);
-    // ABS can return array or {podcast: [...]}
     if (Array.isArray(d))             return d;
     if (Array.isArray(d?.podcast))    return d.podcast;
     if (d?.podcast && typeof d.podcast === 'object') return [d.podcast];
@@ -133,14 +136,14 @@ const ABS = {
   // ── URL helpers ─────────────────────────────────
   coverUrl(libraryItemId, w = 200) {
     if (!libraryItemId) return '';
-    return `${CONFIG.ABS_URL}/api/items/${libraryItemId}/cover?token=${CONFIG.ABS_API_KEY}&format=webp&width=${w}`;
+    return `${CONFIG.ABS_URL}/api/items/${libraryItemId}/cover?token=${AUTH.token}&format=webp&width=${w}`;
   },
 
   audioUrl(contentUrl) {
     if (!contentUrl) return '';
     const base = contentUrl.startsWith('http') ? contentUrl : CONFIG.ABS_URL + contentUrl;
     const sep  = base.includes('?') ? '&' : '?';
-    return `${base}${sep}token=${CONFIG.ABS_API_KEY}`;
+    return `${base}${sep}token=${AUTH.token}`;
   },
 };
 

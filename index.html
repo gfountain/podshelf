@@ -15,6 +15,29 @@
 <div id="app">
   <audio id="audio-el" preload="metadata"></audio>
 
+  <!-- ── Login Screen ──────────────────────────── -->
+  <div id="login-screen" class="hidden">
+    <div class="login-card">
+      <div class="login-logo">📻</div>
+      <div class="login-title">Podshelf</div>
+      <div class="login-sub">Sign in with your Audiobookshelf account</div>
+      <div class="login-fields">
+        <input id="login-user" type="text" autocomplete="username"
+          placeholder="Username" autocapitalize="none" autocorrect="off"
+          onkeydown="if(event.key==='Enter')document.getElementById('login-pass').focus()">
+        <input id="login-pass" type="password" autocomplete="current-password"
+          placeholder="Password"
+          onkeydown="if(event.key==='Enter')APP.doLogin()">
+      </div>
+      <label class="login-remember">
+        <input type="checkbox" id="login-remember" checked>
+        <span>Remember me</span>
+      </label>
+      <div id="login-error" class="login-error"></div>
+      <button id="login-btn" class="btn-primary" onclick="APP.doLogin()">Sign In</button>
+    </div>
+  </div>
+
   <!-- ── Loading ───────────────────────────────── -->
   <div id="loading">
     <div class="emoji" aria-hidden="true">📻</div>
@@ -349,6 +372,7 @@
 
 <!-- Scripts: load order matters — config first, then api, player, app -->
 <script src="config.js"></script>
+<script src="auth.js"></script>
 <script src="api.js"></script>
 <script src="player.js"></script>
 <script src="app.js"></script>

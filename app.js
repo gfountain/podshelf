@@ -654,13 +654,15 @@ const APP = (() => {
     V.innerHTML = `<div class="ph"><div class="ph-title">Profile</div></div>
     <div style="padding:0 20px 24px">
       <div class="profile-card">
-        <div class="profile-avatar">G</div>
-        <div>
-          <div style="font-size:18px;font-weight:700">Greg</div>
+        <div class="profile-avatar">${(AUTH.username || 'G')[0].toUpperCase()}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:18px;font-weight:700">${AUTH.username || 'User'}</div>
           <div style="font-size:12px;color:var(--text2);margin-top:2px;word-break:break-all">
             ${CONFIG.ABS_URL}
           </div>
         </div>
+        <button class="btn-ghost" style="width:auto;padding:8px 14px;font-size:13px"
+          onclick="APP.logout()">Sign out</button>
       </div>
     </div>
 
@@ -1197,40 +1199,89 @@ const APP = (() => {
     syncAllEps().catch(console.warn);
   }
 
-  // ── INIT ─────────────────────────────────────────
-  async function init() {
-    document.getElementById('loading').style.display = 'flex';
+  // ── LOGIN SCREEN ─────────────────────────────────
+  function showLogin(errorMsg = '') {
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('shell').classList.add('hidden');
     document.getElementById('error-screen').classList.add('hidden');
 
+    const screen = document.getElementById('login-screen');
+    screen.classList.remove('hidden');
+
+    const errEl = document.getElementById('login-error');
+    if (errEl) errEl.textContent = errorMsg;
+
+    // Focus username field
+    setTimeout(() => document.getElementById('login-user')?.focus(), 100);
+  }
+
+  async function doLogin() {
+    const username = document.getElementById('login-user')?.value?.trim();
+    const password = document.getElementById('login-pass')?.value;
+    const remember = document.getElementById('login-remember')?.checked;
+    const errEl    = document.getElementById('login-error');
+    const btn      = document.getElementById('login-btn');
+
+    if (!username || !password) {
+      if (errEl) errEl.textContent = 'Please enter your username and password';
+      return;
+    }
+
+    btn.disabled    = true;
+    btn.textContent = 'Signing in…';
+    if (errEl) errEl.textContent = '';
+
     try {
-      // Load per-podcast speeds from Supabase
+      await AUTH.login(username, password, remember);
+      document.getElementById('login-screen').classList.add('hidden');
+      await bootApp();
+    } catch (e) {
+      if (errEl) errEl.textContent = e.message;
+      btn.disabled    = false;
+      btn.textContent = 'Sign In';
+      document.getElementById('login-pass').value = '';
+      document.getElementById('login-pass').focus();
+    }
+  }
+
+  function logout() {
+    AUTH.logout();
+    // Reset state
+    ST.libId = null; ST.podcasts = []; ST.speeds = {};
+    ST.allEpsPlId = null; ST.playlists = []; ST.inProgress = [];
+    ST.queue = []; ST.podcast = null; ST.episodes = [];
+    document.getElementById('shell').classList.add('hidden');
+    document.getElementById('mini-player')?.classList.add('hidden');
+    document.getElementById('player-bar')?.classList.add('hidden');
+    showLogin();
+  }
+
+  // ── BOOT (after auth) ─────────────────────────────
+  async function bootApp() {
+    document.getElementById('loading').style.display = 'flex';
+    try {
       ST.speeds = await DB.getSpeeds();
 
-      // Find podcast library
       const libs    = await ABS.getLibraries();
       const podLibs = libs.filter(l => l.mediaType === 'podcast');
       if (!podLibs.length) throw new Error('No podcast library found in your ABS account.');
       ST.libId = podLibs[0].id;
 
-      // Load podcasts
       ST.podcasts = await ABS.getPodcasts(ST.libId);
 
-      // Load playlists
       const all     = await ABS.getPlaylists();
       ST.allEpsPlId = all.find(p => p.name === CONFIG.ALL_EPS_PLAYLIST)?.id || null;
       ST.playlists  = all.filter(p => p.name !== CONFIG.ALL_EPS_PLAYLIST);
 
-      // Show app shell
       document.getElementById('loading').style.display = 'none';
       document.getElementById('shell').classList.remove('hidden');
 
       navigate('home');
 
-      // Background sync (non-blocking)
       syncAllEps().catch(e => console.warn('Background sync failed:', e.message));
 
     } catch (e) {
-      console.error('Init failed:', e);
+      console.error('Boot failed:', e);
       document.getElementById('loading').style.display = 'none';
       document.getElementById('error-screen').classList.remove('hidden');
       const msgEl = document.getElementById('err-msg');
@@ -1238,9 +1289,21 @@ const APP = (() => {
     }
   }
 
+  // ── INIT ─────────────────────────────────────────
+  async function init() {
+    document.getElementById('loading').style.display = 'flex';
+
+    // Check for saved token first
+    if (AUTH.load()) {
+      await bootApp();
+    } else {
+      showLogin();
+    }
+  }
+
   // ── PUBLIC API ───────────────────────────────────
   return {
-    init, nav: navigate,
+    init, nav: navigate, doLogin, logout,
     toast, openOverlay, closeOverlay,
     podTitle, epTitle,
     getSpeed, setSpeed: setSpeedLocal,
