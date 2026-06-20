@@ -1,65 +1,34 @@
 'use strict';
 
 // ══════════════════════════════════════════════════
-//  AUTH  —  ABS username/password login
+//  AUTH  —  local app password gate
+//  No network request needed — password is checked
+//  against CONFIG.APP_PASSWORD locally.
 //  Token stored in localStorage (remember me)
-//  or sessionStorage (session only)
+//  or sessionStorage (session only).
 // ══════════════════════════════════════════════════
 const AUTH = {
-  token:    null,
-  username: null,
 
-  // ── Load saved token ──────────────────────────
-  // Returns true if a valid-looking token was found
+  // Check for saved auth flag
   load() {
-    const t = localStorage.getItem('ps_token') || sessionStorage.getItem('ps_token');
-    if (t) {
-      this.token    = t;
-      this.username = localStorage.getItem('ps_username') || sessionStorage.getItem('ps_username');
-      return true;
-    }
-    return false;
+    return localStorage.getItem('ps_auth') === '1' ||
+           sessionStorage.getItem('ps_auth') === '1';
   },
 
-  // ── Login ─────────────────────────────────────
-  async login(username, password, remember) {
-    const res = await fetch(`${CONFIG.ABS_URL}/api/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password }),
-    });
-
-    if (res.status === 401 || res.status === 403) {
-      throw new Error('Invalid username or password');
+  // Verify password and store auth flag
+  login(password, remember) {
+    if (password !== CONFIG.APP_PASSWORD) {
+      throw new Error('Incorrect password');
     }
-    if (!res.ok) {
-      throw new Error(`Login failed (${res.status})`);
-    }
-
-    const data = await res.json();
-    const token = data.user?.token;
-    if (!token) throw new Error('No token returned from ABS');
-
-    this.token    = token;
-    this.username = data.user?.username || username;
-
     const store = remember ? localStorage : sessionStorage;
-    store.setItem('ps_token',    token);
-    store.setItem('ps_username', this.username);
-
-    return data.user;
+    store.setItem('ps_auth', '1');
   },
 
-  // ── Logout ────────────────────────────────────
+  // Clear auth flag
   logout() {
-    this.token    = null;
-    this.username = null;
-    localStorage.removeItem('ps_token');
-    localStorage.removeItem('ps_username');
-    sessionStorage.removeItem('ps_token');
-    sessionStorage.removeItem('ps_username');
+    localStorage.removeItem('ps_auth');
+    sessionStorage.removeItem('ps_auth');
   },
 
-  // ── Check if logged in ────────────────────────
-  get isLoggedIn() { return !!this.token; },
+  get isLoggedIn() { return this.load(); },
 };

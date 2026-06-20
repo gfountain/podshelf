@@ -654,9 +654,9 @@ const APP = (() => {
     V.innerHTML = `<div class="ph"><div class="ph-title">Profile</div></div>
     <div style="padding:0 20px 24px">
       <div class="profile-card">
-        <div class="profile-avatar">${(AUTH.username || 'G')[0].toUpperCase()}</div>
+        <div class="profile-avatar">G</div>
         <div style="flex:1;min-width:0">
-          <div style="font-size:18px;font-weight:700">${AUTH.username || 'User'}</div>
+          <div style="font-size:18px;font-weight:700">Greg</div>
           <div style="font-size:12px;color:var(--text2);margin-top:2px;word-break:break-all">
             ${CONFIG.ABS_URL}
           </div>
@@ -1212,27 +1212,24 @@ const APP = (() => {
     if (errEl) errEl.textContent = errorMsg;
 
     // Focus username field
-    setTimeout(() => document.getElementById('login-user')?.focus(), 100);
+    setTimeout(() => document.getElementById('login-pass')?.focus(), 100);
   }
 
   async function doLogin() {
-    const username = document.getElementById('login-user')?.value?.trim();
     const password = document.getElementById('login-pass')?.value;
     const remember = document.getElementById('login-remember')?.checked;
     const errEl    = document.getElementById('login-error');
     const btn      = document.getElementById('login-btn');
 
-    if (!username || !password) {
-      if (errEl) errEl.textContent = 'Please enter your username and password';
+    if (!password) {
+      if (errEl) errEl.textContent = 'Please enter the password';
       return;
     }
 
-    btn.disabled    = true;
-    btn.textContent = 'Signing in…';
     if (errEl) errEl.textContent = '';
 
     try {
-      await AUTH.login(username, password, remember);
+      AUTH.login(password, remember);
       document.getElementById('login-screen').classList.add('hidden');
       await bootApp();
     } catch (e) {
