@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#111118">
+  <title>Podshelf</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="app">
+  <audio id="audio-el" preload="metadata"></audio>
+
+  <!-- ── Loading ───────────────────────────────── -->
+  <div id="loading">
+    <div class="emoji" aria-hidden="true">📻</div>
+    <div class="spin"></div>
+    <div>Connecting to Audiobookshelf…</div>
+  </div>
+
+  <!-- ── Error ─────────────────────────────────── -->
+  <div id="error-screen" class="hidden">
+    <div class="emoji" aria-hidden="true">⚠️</div>
+    <h2>Connection failed</h2>
+    <div id="err-msg"></div>
+    <button class="btn-primary" style="margin-top:20px;max-width:200px"
+      onclick="APP.init()">Retry</button>
+  </div>
+
+  <!-- ── App Shell ─────────────────────────────── -->
+  <div id="shell" class="hidden">
+
+    <!-- Sidebar (desktop only) -->
+    <aside id="sidebar" aria-label="Navigation">
+      <div class="sidebar-logo">📻 Podshelf</div>
+      <nav class="sidebar-nav">
+        <div class="sidebar-link active" data-view="home"
+          onclick="APP.nav('home')" tabindex="0" role="button" aria-label="Home">
+          🏠 Home
+        </div>
+        <div class="sidebar-link" data-view="podcasts"
+          onclick="APP.nav('podcasts')" tabindex="0" role="button" aria-label="Podcasts">
+          🎙 Podcasts
+        </div>
+        <div class="sidebar-link" data-view="queue"
+          onclick="APP.nav('queue')" tabindex="0" role="button" aria-label="Up Next">
+          ⏭ Up Next
+        </div>
+        <div class="sidebar-link" data-view="episodes"
+          onclick="APP.nav('episodes')" tabindex="0" role="button" aria-label="Episodes">
+          📋 Episodes
+        </div>
+        <div class="sidebar-link" data-view="discover"
+          onclick="APP.nav('discover')" tabindex="0" role="button" aria-label="Discover">
+          🔍 Discover
+        </div>
+        <div class="sidebar-link" data-view="profile"
+          onclick="APP.nav('profile')" tabindex="0" role="button" aria-label="Profile">
+          👤 Profile
+        </div>
+      </nav>
+    </aside>
+
+    <!-- View area -->
+    <main id="view" aria-live="polite"></main>
+
+    <!-- Mini player (mobile) -->
+    <div id="mini-player" class="hidden" role="complementary"
+      aria-label="Mini player" onclick="APP.openFullPlayer()">
+      <img id="mini-art" class="mini-art" src="" alt="Podcast artwork">
+      <div class="mini-info">
+        <div id="mini-show" class="mini-show"></div>
+        <div id="mini-title" class="mini-title">Not playing</div>
+      </div>
+      <div class="mini-ctl">
+        <button class="ib ib-sm" onclick="event.stopPropagation();PLAYER.skipBack()"
+          aria-label="Skip back 15 seconds">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M11.99 5V1l-5 5 5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6h-2
+              c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/>
+          </svg>
+        </button>
+        <button class="ib ib-accent" id="mini-pp"
+          onclick="event.stopPropagation();PLAYER.toggle()" aria-label="Play or Pause">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M8 5v14l11-7z"/>
+          </svg>
+        </button>
+        <button class="ib ib-sm" onclick="event.stopPropagation();PLAYER.skipFwd()"
+          aria-label="Skip forward 30 seconds">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M18 13c0 3.31-2.69 6-6 6s-6-2.69-6-6 2.69-6 6-6v4l5-5-5-5v4
+              c-4.42 0-8 3.58-8 8s3.58 8 8 8 8-3.58 8-8h-2z"/>
+          </svg>
+        </button>
+      </div>
+      <div class="mini-prog">
+        <div id="mini-prog-fill" style="width:0%"></div>
+      </div>
+    </div>
+
+    <!-- Player bar (desktop) -->
+    <div id="player-bar" class="hidden" role="complementary" aria-label="Player bar">
+      <img id="bar-art" class="bar-art" src="" alt="Podcast artwork"
+        onclick="APP.openFullPlayer()" style="cursor:pointer">
+      <div class="bar-meta">
+        <div id="bar-show" class="bar-show"></div>
+        <div id="bar-title" class="bar-title"></div>
+      </div>
+      <div class="bar-seek">
+        <div id="bar-seek-wrap" onclick="PLAYER.barSeek(event)">
+          <div id="bar-prog-fill" style="width:0%"></div>
+        </div>
+        <div class="seek-times">
+          <span id="bar-cur">0:00</span>
+          <span id="bar-rem">0:00</span>
+        </div>
+      </div>
+      <div class="bar-ctl">
+        <button class="speed-chip speed-label"
+          onclick="APP.openSpeedPicker(PLAYER.podcast?.id)" aria-label="Change playback speed">
+          1×
+        </button>
+        <button class="ib ib-sm" onclick="PLAYER.skipBack()" aria-label="Skip back 15s">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M11.99 5V1l-5 5 5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6h-2
+              c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/>
+          </svg>
+        </button>
+        <button class="ib ib-accent" id="bar-pp" onclick="PLAYER.toggle()" aria-label="Play or Pause">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M8 5v14l11-7z"/>
+          </svg>
+        </button>
+        <button class="ib ib-sm" onclick="PLAYER.skipFwd()" aria-label="Skip forward 30s">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M18 13c0 3.31-2.69 6-6 6s-6-2.69-6-6 2.69-6 6-6v4l5-5-5-5v4
+              c-4.42 0-8 3.58-8 8s3.58 8 8 8 8-3.58 8-8h-2z"/>
+          </svg>
+        </button>
+        <button class="ib ib-sm" onclick="APP.openFullPlayer()" aria-label="Open full player">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Bottom nav (mobile) -->
+    <nav id="bottom-nav" aria-label="Main navigation">
+      <div class="nav-tab active" data-view="home"
+        onclick="APP.nav('home')" role="button" tabindex="0" aria-label="Home">
+        <span aria-hidden="true">🏠</span><span>Home</span>
+      </div>
+      <div class="nav-tab" data-view="podcasts"
+        onclick="APP.nav('podcasts')" role="button" tabindex="0" aria-label="Podcasts">
+        <span aria-hidden="true">🎙</span><span>Podcasts</span>
+      </div>
+      <div class="nav-tab" data-view="queue"
+        onclick="APP.nav('queue')" role="button" tabindex="0" aria-label="Up Next">
+        <span aria-hidden="true">⏭</span><span>Up Next</span>
+      </div>
+      <div class="nav-tab" data-view="episodes"
+        onclick="APP.nav('episodes')" role="button" tabindex="0" aria-label="Episodes">
+        <span aria-hidden="true">📋</span><span>Episodes</span>
+      </div>
+      <div class="nav-tab" data-view="profile"
+        onclick="APP.nav('profile')" role="button" tabindex="0" aria-label="Profile">
+        <span aria-hidden="true">👤</span><span>Profile</span>
+      </div>
+    </nav>
+
+  </div><!-- /#shell -->
+
+  <!-- ══════════════════════════════════════════════
+       FULL PLAYER OVERLAY
+  ════════════════════════════════════════════════ -->
+  <div id="full-player" aria-label="Full player" role="dialog">
+    <div id="player-bg" aria-hidden="true"></div>
+    <div class="player-bg-overlay" aria-hidden="true"></div>
+    <div class="player-inner">
+
+      <div class="player-topbar">
+        <button class="ib" style="background:rgba(255,255,255,.12);color:#fff"
+          onclick="APP.closeFullPlayer()" aria-label="Close player">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/>
+          </svg>
+        </button>
+        <span style="font-size:11px;font-weight:700;letter-spacing:.1em;
+          color:rgba(255,255,255,.6)">NOW PLAYING</span>
+        <button class="ib" style="background:rgba(255,255,255,.12);color:#fff"
+          onclick="APP.openSheet(PLAYER.podcast?.id, PLAYER.episode?.id)"
+          aria-label="Episode options">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2
+              .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9
+              2-2-.9-2-2-2z"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="player-art-wrap">
+        <img id="full-art" class="player-art" src="" alt="Podcast artwork">
+      </div>
+
+      <div class="player-meta">
+        <div id="full-show"></div>
+        <div id="full-title">No episode selected</div>
+      </div>
+
+      <div class="player-seek">
+        <div id="seek-wrap" role="slider" aria-label="Seek"
+          onclick="PLAYER.seek(event)">
+          <div id="seek-fill" style="width:0%"></div>
+        </div>
+        <div class="seek-times">
+          <span id="seek-cur">0:00</span>
+          <span id="seek-rem">-0:00</span>
+        </div>
+      </div>
+
+      <div class="player-ctl">
+        <button class="skip-btn" onclick="PLAYER.skipBack()"
+          aria-label="Skip back 15 seconds">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M11.99 5V1l-5 5 5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6h-2
+              c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/>
+            <text x="12" y="17" text-anchor="middle" font-size="6"
+              font-weight="900" fill="currentColor" font-family="system-ui">15</text>
+          </svg>
+        </button>
+        <button class="pp-btn" id="full-pp" onclick="PLAYER.toggle()"
+          aria-label="Play or Pause">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M8 5v14l11-7z"/>
+          </svg>
+        </button>
+        <button class="skip-btn" onclick="PLAYER.skipFwd()"
+          aria-label="Skip forward 30 seconds">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M18 13c0 3.31-2.69 6-6 6s-6-2.69-6-6 2.69-6 6-6v4l5-5-5-5v4
+              c-4.42 0-8 3.58-8 8s3.58 8 8 8 8-3.58 8-8h-2z"/>
+            <text x="12" y="17" text-anchor="middle" font-size="6"
+              font-weight="900" fill="currentColor" font-family="system-ui">30</text>
+          </svg>
+        </button>
+      </div>
+
+      <div class="player-extras">
+        <button class="ex-btn" onclick="APP.openSpeedPicker(PLAYER.podcast?.id)"
+          aria-label="Playback speed">
+          <span class="speed-label">1×</span>
+          Speed
+        </button>
+        <button class="ex-btn" onclick="
+          PLAYER.episode && APP.addToQueue(
+            PLAYER.podcast?.id, PLAYER.episode?.id,
+            PLAYER.episode?.title || 'Episode',
+            PLAYER.podcast ? APP.podTitle(PLAYER.podcast) : '',
+            PLAYER.duration || 0,
+            PLAYER.podcast ? '' : ''
+          )" aria-label="Add to queue">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M3 18h13v-2H3v2zm0-5h10v-2H3v2zm0-7v2h13V6H3zm18 9.59L17.42
+              12 21 8.41 19.59 7l-5 5 5 5L21 15.59z"/>
+          </svg>
+          Queue
+        </button>
+        <button class="ex-btn" onclick="
+          PLAYER.episode && APP.openSheet(PLAYER.podcast?.id, PLAYER.episode?.id)
+          " aria-label="Episode options">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5
+              c0-1.1-.9-2-2-2zm-2 10h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"/>
+          </svg>
+          More
+        </button>
+        <button class="ex-btn" onclick="
+          PLAYER.episode && APP.markPlayed(
+            PLAYER.podcast?.id, PLAYER.episode?.id,
+            PLAYER.duration || 0, false
+          ).then(() => APP.closeFullPlayer())" aria-label="Mark as played">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+          </svg>
+          Done
+        </button>
+      </div>
+
+    </div><!-- /.player-inner -->
+  </div><!-- /#full-player -->
+
+  <!-- ══════════════════════════════════════════════
+       SPEED PICKER SHEET
+  ════════════════════════════════════════════════ -->
+  <div class="overlay" id="speed-overlay" onclick="APP.closeOverlay('speed-overlay')">
+    <div class="sheet" onclick="event.stopPropagation()">
+      <div class="sheet-handle"></div>
+      <div class="sheet-title">Playback Speed</div>
+      <div class="sheet-title" id="speed-sheet-pod"
+        style="font-size:12px;margin-top:-6px;margin-bottom:8px"></div>
+      <div id="speed-list"></div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════
+       EPISODE ACTIONS SHEET
+  ════════════════════════════════════════════════ -->
+  <div class="overlay" id="ep-actions-overlay"
+    onclick="APP.closeOverlay('ep-actions-overlay')">
+    <div class="sheet" onclick="event.stopPropagation()">
+      <div class="sheet-handle"></div>
+      <div class="sheet-title" id="sheet-ep-title">Episode</div>
+      <div id="sheet-list"></div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════
+       PLAYLIST PICKER SHEET
+  ════════════════════════════════════════════════ -->
+  <div class="overlay" id="playlist-overlay"
+    onclick="APP.closeOverlay('playlist-overlay')">
+    <div class="sheet" onclick="event.stopPropagation()">
+      <div class="sheet-handle"></div>
+      <div class="sheet-title">Add to Playlist</div>
+      <div id="pl-pick-list"></div>
+      <div style="margin-top:16px;border-top:1px solid var(--border);padding-top:14px">
+        <div style="font-size:13px;color:var(--text2);margin-bottom:8px;font-weight:600">
+          Create new playlist
+        </div>
+        <input type="text" id="pl-new-input" placeholder="Playlist name…"
+          onkeydown="if(event.key==='Enter')APP.createPlFromInput()">
+        <button class="btn-primary" onclick="APP.createPlFromInput()">
+          Create &amp; Add
+        </button>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /#app -->
+
+<!-- Toast -->
+<div id="toast" role="status" aria-live="polite"></div>
+
+<!-- Scripts: load order matters — config first, then api, player, app -->
+<script src="config.js"></script>
+<script src="api.js"></script>
+<script src="player.js"></script>
+<script src="app.js"></script>
+<script>
+  // Kick off the app
+  document.addEventListener('DOMContentLoaded', () => APP.init());
+
+  // Keyboard shortcuts (desktop)
+  document.addEventListener('keydown', e => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    if (e.code === 'Space')       { e.preventDefault(); PLAYER.toggle(); }
+    if (e.code === 'ArrowLeft')   PLAYER.skipBack();
+    if (e.code === 'ArrowRight')  PLAYER.skipFwd();
+    if (e.code === 'Escape') {
+      APP.closeOverlay('speed-overlay');
+      APP.closeOverlay('ep-actions-overlay');
+      APP.closeOverlay('playlist-overlay');
+      APP.closeFullPlayer();
+    }
+  });
+</script>
+</body>
+</html>
