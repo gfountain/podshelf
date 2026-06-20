@@ -534,7 +534,10 @@ input[type="search"]::-webkit-search-cancel-button { display: none; }
 .pod-card:active { transform: scale(.96); }
 
 .pod-art {
-  width: 100%; aspect-ratio: 1;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
   border-radius: var(--radius-sm);
   margin-bottom: 6px;
 }
